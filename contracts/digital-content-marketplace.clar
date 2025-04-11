@@ -144,3 +144,51 @@
         (ok current-id)
     )
 )
+
+;; Purchase digital content
+(define-public (acquire-content (item-id uint))
+    (let
+        (
+            (item-info (unwrap! (map-get? content-offerings { item-id: item-id }) 
+                ERR_ITEM_UNAVAILABLE))
+            (total-cost (get price-tag item-info))
+            (merchant (get owner item-info))
+            (fee-amount (compute-fee total-cost))
+            (merchant-share (- total-cost fee-amount))
+        )
+        (asserts! (< item-id (var-get item-counter)) ERR_INPUT_INVALID)
+        (asserts! (get tradeable item-info) ERR_ITEM_UNAVAILABLE)
+        (asserts! (is-eq false (is-eq tx-sender merchant)) ERR_SELF_TRADE_BLOCKED)
+        
+        (try! (process-payment tx-sender merchant merchant-share))
+        (try! (process-payment tx-sender owner-address fee-amount))
+        
+        (map-set exchange-records
+            { customer: tx-sender, item-id: item-id }
+            {
+                timestamp: stacks-block-height,
+                cost: total-cost,
+                merchant: merchant
+            }
+        )
+        
+        (let
+            (
+                (merchant-stats (default-to 
+                    { trade-count: u0, quality-score: u0, last-active: u0 }
+                    (map-get? trader-metrics { participant: merchant })))
+            )
+            (map-set trader-metrics
+                { participant: merchant }
+                {
+                    trade-count: (+ (get trade-count merchant-stats) u1),
+                    quality-score: (get quality-score merchant-stats),
+                    last-active: stacks-block-height
+                }
+            )
+        )
+        
+        (var-set exchange-volume (+ (var-get exchange-volume) u1))
+        (ok true)
+    )
+)
