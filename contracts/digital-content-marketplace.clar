@@ -103,3 +103,44 @@
 (define-private (process-payment (from principal) (to principal) (amount uint))
     (stx-transfer? amount from to)
 )
+
+;; Content Management Functions
+
+;; Register new digital content for sale
+(define-public (register-content (asking-price uint) 
+                               (summary (string-ascii 256)) 
+                               (content-type (string-ascii 64)) 
+                               (access-token (string-ascii 512)))
+    (let
+        (
+            (current-id (var-get item-counter))
+        )
+        (asserts! (> asking-price u0) ERR_PRICE_INVALID)
+        (asserts! (verify-summary summary) ERR_INPUT_INVALID)
+        (asserts! (verify-type content-type) ERR_INPUT_INVALID)
+        (asserts! (verify-token access-token) ERR_INPUT_INVALID)
+        (asserts! (not (default-to false (get tradeable 
+            (map-get? content-offerings { item-id: current-id })))) 
+            ERR_DUPLICATE_ITEM)
+        
+        (map-set content-offerings
+            { item-id: current-id }
+            {
+                owner: tx-sender,
+                price-tag: asking-price,
+                content-summary: summary,
+                content-type: content-type,
+                tradeable: true,
+                creation-block: stacks-block-height
+            }
+        )
+        
+        (map-set content-keys
+            { item-id: current-id }
+            { secure-access-token: access-token }
+        )
+        
+        (var-set item-counter (+ current-id u1))
+        (ok current-id)
+    )
+)
