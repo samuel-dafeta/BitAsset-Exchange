@@ -266,3 +266,18 @@
 (define-read-only (get-content-info (item-id uint))
     (map-get? content-offerings { item-id: item-id })
 )
+
+;; Get trader statistics
+(define-read-only (get-trader-info (participant principal))
+    (map-get? trader-metrics { participant: participant })
+)
+
+;; Get total marketplace volume
+(define-read-only (get-exchange-stats)
+    (var-get exchange-volume)
+)
+
+;; Get current marketplace fee rate
+(define-read-only (get-current-fee)
+    (var-get exchange-fee)
+)
